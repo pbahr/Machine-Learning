@@ -1,0 +1,144 @@
+---
+title: "Weight Lifting Prediction Assignment"
+author: "Payam Bahreyni"
+date: "March 8, 2016"
+output: html_document
+---
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har. [1]
+
+[1] Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+## Data Description
+
+We have data gathered from 6 participants all doing the same exxercise. We know if they did the exercise the right way (classe: A) or wrong (other classes) as labeled by the experts (Classe variable in the training data). The measurements are gathered by sensors installed on the subjects' arm, belt, forearm, and on the dumpbell.
+
+## Data Preparation and Preprocessing
+
+First, we need to load the data. We need to specify which strings should be considered as missing value, in order to load the measurements as numerical values.
+
+```{r}
+training <- read.csv("./Project/data/pml-training.csv", na.strings = c("","#DIV/0!", "NA"))
+testing <- read.csv("./Project/data/pml-testing.csv", na.strings = c("","#DIV/0!", "NA"))
+
+names(training[,1:10])
+
+library(ggplot2)
+
+ggplot(training, aes(classe)) +
+    geom_bar(fill= "blue")
+```
+
+Each classe is represented enough in the data set. 
+
+The first 7 variables are identifiers and configuration parameters. We need to separate the measurements from other variables in the data set.
+
+```{r}
+outcome <- 160
+irrelevant <- c(1:7)
+
+predictors <- training[,-c(irrelevant,outcome)] 
+```
+
+### Missing Value Treatment
+
+Next, we examine the predictors for missing values. There are a lot of measurement variables that have a lot of missing values. These need to be left out in our prediction.
+
+```{r}
+percent.nas <- sapply(predictors, function(x){round(sum(is.na(x)) * 100/length(x), 2)})
+percent.nas[percent.nas > 0]
+
+# Filter highly-NA from predictors
+ncol(predictors)
+predictors <- predictors[, -which(percent.nas > 0)]
+ncol(predictors)
+```
+
+### Predictor Correlation
+
+For the remaining predictors, we need to know how they are correlated to each other.
+
+```{r}
+M <- abs(cor(predictors))
+diag(M) <- 0
+
+# Array containing highly-correlated vars
+arr <- which(M>.7, arr.ind=T)
+
+# Data frame containing correlated vars
+cor.df <- data.frame(row.no= arr[,1], row= names(predictors)[arr[,1]], 
+                     col.no= arr[,2], col= names(predictors)[arr[,2]])
+cor.df$corr <- mapply(function(i,j) { M[i,j] }, cor.df$row.no, cor.df$col.no)
+    #M[cor.df$row.no, cor.df$col.no]
+
+# Keep one of the instances of each pair
+library(dplyr)
+nrow(cor.df)
+cor.df <- filter(cor.df, row.no > col.no)
+nrow(cor.df)
+
+# visualize correlation btw correlated variables                     
+ggplot(cor.df, aes(row, col, color= corr)) +
+    geom_point() +
+    theme(axis.text.x= element_text(angle= 45, vjust=1, hjust= 1))
+```
+
+Because of the movement measurements are highly correlated, we will Principal Component Analysis to get smaller number of uncorrelated predictors to work with.
+
+### Principal Component Analysis (PCA)
+
+First we will get the principal components using `prcomp()` function. Examining the scree plot, we see that 7 components is all we need to explain the most variation.
+
+```{r}
+pcs.pr <- prcomp(predictors, scale. = T)
+plot(pcs.pr, type="l")
+```
+
+Then, we use `caret` package to calculate the components for training and test data.
+
+```{r}
+library(caret)
+PC.model <- preProcess(predictors, method = "pca", pcaComp= 7)
+# Calculate training Principle Components
+train.pcs <- predict(PC.model, predictors)
+
+test.pcs <- predict(PC.model, newdata = testing)
+test.pcs.ncols <- ncol(test.pcs)
+test.pcs <- test.pcs[,(test.pcs.ncols-6):(test.pcs.ncols)]
+```
+
+## Predictive Modeling
+
+We are ready to use the principal components to predict the Classes of activity. Since we would like to get an accurate prediction and not really interested in model interpretability, I will use a Random Forest model to predict.
+
+### Cross Validation
+
+We will use k-fold cross validation with k= 10. I didn't want to use a high K to avoid overfitting.
+
+```{r, cache= T}
+train.data <- cbind(train.pcs, training$classe)
+names(train.data)[ncol(train.data)] <- "classe"
+
+tr <- trainControl(method= "cv", number = 10)
+model <- train(classe ~ ., method= "rf", data= train.data, trControl = tr)
+model
+```
+
+### Prediction
+
+Given the in-sample error rate, I expect the prediction to be about 90% accurate. Now, we use the model we got in the last step to predict classe for the test data.
+
+```{r}
+test.classe <- predict(model, newdata = test.pcs)
+test.classe
+str(test.classe)
+
+result <- data.frame(problem_id= testing$problem_id, classe=test.classe)
+
+result
+```
+
