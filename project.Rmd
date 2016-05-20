@@ -48,7 +48,7 @@ predictors <- training[,-c(irrelevant,outcome)]
 
 ### Missing Value Treatment
 
-Next, we examine the predictors for missing values. There are a lot of measurement variables that have a lot of missing values. These need to be left out in our prediction.
+Next, we examine the predictors for missing values. There are a lot of measurement variables that have missing values. These need to be left out in our prediction.
 
 ```{r}
 percent.nas <- sapply(predictors, function(x){round(sum(is.na(x)) * 100/length(x), 2)})
@@ -89,11 +89,11 @@ ggplot(cor.df, aes(row, col, color= corr)) +
     theme(axis.text.x= element_text(angle= 45, vjust=1, hjust= 1))
 ```
 
-Because of the movement measurements are highly correlated, we will Principal Component Analysis to get smaller number of uncorrelated predictors to work with.
+Because the movement measurements are highly correlated, we will use Principal Component Analysis to get smaller number of uncorrelated predictors to work with.
 
 ### Principal Component Analysis (PCA)
 
-First we will get the principal components using `prcomp()` function. Examining the scree plot, we see that 7 components is all we need to explain the most variation.
+First we will get the principal components using `prcomp()` function. Examining the scree plot, we see that 7 components is all we need to explain most of the variation.
 
 ```{r}
 pcs.pr <- prcomp(predictors, scale. = T)

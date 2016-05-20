@@ -103,7 +103,7 @@ irrelevant &lt;- c(1:7)
 predictors &lt;- training[,-c(irrelevant,outcome)] </code></pre>
 <div id="missing-value-treatment" class="section level3">
 <h3>Missing Value Treatment</h3>
-<p>Next, we examine the predictors for missing values. There are a lot of measurement variables that have a lot of missing values. These need to be left out in our prediction.</p>
+<p>Next, we examine the predictors for missing values. There are a lot of measurement variables that have missing values. These need to be left out in our prediction.</p>
 <pre class="r"><code>percent.nas &lt;- sapply(predictors, function(x){round(sum(is.na(x)) * 100/length(x), 2)})
 percent.nas[percent.nas &gt; 0]</code></pre>
 <pre><code>##       kurtosis_roll_belt      kurtosis_picth_belt        kurtosis_yaw_belt 
@@ -218,11 +218,11 @@ ggplot(cor.df, aes(row, col, color= corr)) +
     geom_point() +
     theme(axis.text.x= element_text(angle= 45, vjust=1, hjust= 1))</code></pre>
 <p><img src="project_files/figure-html/unnamed-chunk-4-1.png" title="" alt="" width="672" /></p>
-<p>Because of the movement measurements are highly correlated, we will Principal Component Analysis to get smaller number of uncorrelated predictors to work with.</p>
+<p>Because the movement measurements are highly correlated, we will use Principal Component Analysis to get smaller number of uncorrelated predictors to work with.</p>
 </div>
 <div id="principal-component-analysis-pca" class="section level3">
 <h3>Principal Component Analysis (PCA)</h3>
-<p>First we will get the principal components using <code>prcomp()</code> function. Examining the scree plot, we see that 7 components is all we need to explain the most variation.</p>
+<p>First we will get the principal components using <code>prcomp()</code> function. Examining the scree plot, we see that 7 components is all we need to explain most of the variation.</p>
 <pre class="r"><code>pcs.pr &lt;- prcomp(predictors, scale. = T)
 plot(pcs.pr, type=&quot;l&quot;)</code></pre>
 <p><img src="project_files/figure-html/unnamed-chunk-5-1.png" title="" alt="" width="672" /></p>
